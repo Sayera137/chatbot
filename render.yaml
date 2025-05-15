@@ -1,7 +1,12 @@
 services:
-  - type: worker
-    name: fantasy-chat-bot
+  - type: web
+    name: fantasy-chatbot
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: python main.py
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
