@@ -2,6 +2,7 @@ import os
 import telebot
 import requests
 from flask import Flask, request
+import threading
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
@@ -9,50 +10,48 @@ OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
 bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)
 
-def generate_ai_response(user_input):
+CHARACTER = "তুমি একজন কামুক এলফ রাজকুমারী। তুমি কোমল, রোমান্টিক, একটু খোলামেলা কথা বলো।"
+
+@app.route('/')
+def index():
+    return "Fantasy Telegram Bot is Running!"
+
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+    bot.reply_to(message, "স্বাগতম! Fantasy chat করতে কিছু লিখুন।")
+
+@bot.message_handler(func=lambda m: True)
+def handle_message(message):
+    user_input = message.text.strip()
+    prompt = f"Character: {CHARACTER}\nUser: {user_input}\nAI:"
+    response = generate_ai_response(prompt)
+    bot.reply_to(message, response)
+
+def generate_ai_response(prompt):
+    url = "https://openrouter.ai/api/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
         "Content-Type": "application/json"
     }
-
     data = {
-        "model": "openhermes-2.5-mistral",  # আপনি চাইলে এখানে অন্য মডেল ব্যবহার করতে পারেন
+        "model": "openrouter/openhermes-2.5-mistral",
         "messages": [
-            {"role": "system", "content": "You are a seductive elf princess in a romantic fantasy world. Be playful, gentle, and imaginative."},
-            {"role": "user", "content": user_input}
+            {"role": "system", "content": CHARACTER},
+            {"role": "user", "content": prompt}
         ]
     }
+    try:
+        r = requests.post(url, headers=headers, json=data)
+        r.raise_for_status()
+        return r.json()["choices"][0]["message"]["content"]
+    except Exception as e:
+        return f"AI এর সাথে সংযোগ ব্যর্থ: {e}"
 
-    response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=data)
+def start_polling():
+    bot.infinity_polling()
 
-    if response.status_code == 200:
-        return response.json()["choices"][0]["message"]["content"]
-    else:
-        return "আমি এখন কিছু বলতে পারছি না, একটু পরে বলো।"
-
-@bot.message_handler(commands=['start'])
-def send_welcome(message):
-    bot.reply_to(message, "স্বাগতম! Fantasy chat করতে /chat এর পর কিছু লিখুন।")
-
-@bot.message_handler(commands=['chat'])
-def handle_chat(message):
-    user_input = message.text.replace("/chat", "").strip()
-    if not user_input:
-        bot.reply_to(message, "দয়া করে /chat এর পর কিছু লিখুন।")
-        return
-    response = generate_ai_response(user_input)
-    bot.reply_to(message, response)
-
-# Flask route to keep web service alive
-@app.route('/')
-def index():
-    return "Bot is running!"
-
-# Start polling inside web service
-@app.before_first_request
-def activate_bot():
-    import threading
-    threading.Thread(target=bot.polling, kwargs={"none_stop": True}).start()
-
-if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=int(os.environ.get('PORT', 5000)))
+# Flask app চালু হলে আলাদা থ্রেডে টেলিগ্রাম বট চালু হবে
+if __name__ == "__main__":
+    threading.Thread(target=start_polling).start()
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
