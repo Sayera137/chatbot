@@ -1,17 +1,38 @@
 import os
 import telebot
 import requests
+from flask import Flask, request
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-AI_API_KEY = os.environ.get("AI_API_KEY")
+OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
 
 bot = telebot.TeleBot(BOT_TOKEN)
+app = Flask(__name__)
 
-CHARACTER = "তুমি একজন কামুক এলফ রাজকুমারী। তোমার কণ্ঠ কোমল, প্রেমময় ও রোমান্টিক।"
+def generate_ai_response(user_input):
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    data = {
+        "model": "openhermes-2.5-mistral",  # আপনি চাইলে এখানে অন্য মডেল ব্যবহার করতে পারেন
+        "messages": [
+            {"role": "system", "content": "You are a seductive elf princess in a romantic fantasy world. Be playful, gentle, and imaginative."},
+            {"role": "user", "content": user_input}
+        ]
+    }
+
+    response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=data)
+
+    if response.status_code == 200:
+        return response.json()["choices"][0]["message"]["content"]
+    else:
+        return "আমি এখন কিছু বলতে পারছি না, একটু পরে বলো।"
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    bot.reply_to(message, "স্বাগতম! Fantasy chat করতে /chat লিখুন।")
+    bot.reply_to(message, "স্বাগতম! Fantasy chat করতে /chat এর পর কিছু লিখুন।")
 
 @bot.message_handler(commands=['chat'])
 def handle_chat(message):
@@ -19,36 +40,19 @@ def handle_chat(message):
     if not user_input:
         bot.reply_to(message, "দয়া করে /chat এর পর কিছু লিখুন।")
         return
+    response = generate_ai_response(user_input)
+    bot.reply_to(message, response)
 
-    prompt = f"{CHARACTER}\nUser: {user_input}\nAI:"
-    response = call_openrouter_api(prompt)
+# Flask route to keep web service alive
+@app.route('/')
+def index():
+    return "Bot is running!"
 
-    if response:
-        bot.reply_to(message, response)
-    else:
-        bot.reply_to(message, "AI থেকে উত্তর পাওয়া যায়নি।")
+# Start polling inside web service
+@app.before_first_request
+def activate_bot():
+    import threading
+    threading.Thread(target=bot.polling, kwargs={"none_stop": True}).start()
 
-def call_openrouter_api(prompt):
-    try:
-        url = "https://openrouter.ai/api/v1/chat/completions"
-        headers = {
-            "Authorization": f"Bearer {AI_API_KEY}",
-            "Content-Type": "application/json"
-        }
-        data = {
-            "model": "openrouter/pygmalion-2.7b",
-            "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": 200,
-            "temperature": 0.95
-        }
-
-        response = requests.post(url, headers=headers, json=data)
-        response_json = response.json()
-        return response_json["choices"][0]["message"]["content"].strip()
-    except Exception as e:
-        print("API error:", e)
-        return None
-
-print("Bot is running...")
-bot.remove_webhook()
-bot.polling()
+if __name__ == '__main__':
+    app.run(host="0.0.0.0", port=int(os.environ.get('PORT', 5000)))
