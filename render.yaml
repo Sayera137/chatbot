@@ -1,15 +1,11 @@
 services:
   - type: web
-    name: fantasy-chatbot
+    name: telegram-fantasy-bot
     env: python
-    plan: free
-    buildCommand: ""
+    buildCommand: pip install -r requirements.txt
     startCommand: python main.py
     envVars:
       - key: BOT_TOKEN
-        sync: false
+        value: your_telegram_bot_token
       - key: OPENROUTER_API_KEY
-        sync: false
-    autoDeploy: true
-    region: oregon
-    healthCheckPath: /
+        value: your_openrouter_api_key
