@@ -3,21 +3,25 @@ import telebot
 import requests
 from flask import Flask, request
 
+# Get tokens from environment variables
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
-bot = telebot.TeleBot(BOT_TOKEN)
 
+# Initialize Telegram bot and Flask app
+bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)
 
+# Define character prompt
 CHARACTER = "You are a soft-spoken, flirtatious fantasy elf princess. Speak gently, romantically, and in poetic tone."
 
+# Function to call OpenRouter AI
 def ask_ai(user_input):
     headers = {
         "Authorization": f"Bearer {OPENROUTER_API_KEY}",
         "Content-Type": "application/json"
     }
     payload = {
-        "model": "nousresearch/nous-hermes-2-mixtral",
+        "model": "nousresearch/nous-hermes-2-mixtral",  # or any free model you want
         "messages": [
             {"role": "system", "content": CHARACTER},
             {"role": "user", "content": user_input}
@@ -29,10 +33,12 @@ def ask_ai(user_input):
     else:
         return "AI এর সাথে সংযোগ ব্যর্থ হয়েছে। পরে আবার চেষ্টা করুন।"
 
+# Handle /start command
 @bot.message_handler(commands=['start'])
 def welcome(msg):
     bot.reply_to(msg, "স্বাগতম! Fantasy chat করতে এখন সরাসরি বার্তা পাঠান।")
 
+# Handle all messages
 @bot.message_handler(func=lambda m: True)
 def chat(msg):
     user_text = msg.text
@@ -40,17 +46,20 @@ def chat(msg):
     ai_reply = ask_ai(user_text)
     bot.reply_to(msg, ai_reply)
 
+# Health check endpoint
 @app.route('/')
 def index():
     return "Bot is Running!"
 
+# Webhook endpoint for Telegram
 @app.route(f'/{BOT_TOKEN}', methods=['POST'])
 def webhook():
     update = telebot.types.Update.de_json(request.stream.read().decode("utf-8"))
     bot.process_new_updates([update])
     return "!", 200
 
+# Start the Flask app and set webhook
 if __name__ == "__main__":
     bot.remove_webhook()
-    bot.set_webhook(url=f"https://YOUR_RENDER_URL.onrender.com/{BOT_TOKEN}")
+    bot.set_webhook(url=f"https://chatbot-s8g6.onrender.com/{BOT_TOKEN}")
     app.run(host="0.0.0.0", port=10000)
