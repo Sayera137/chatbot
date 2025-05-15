@@ -5,10 +5,11 @@ from flask import Flask, request
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
+
 bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)
 
-CHARACTER = "You are a sensual, poetic fantasy elf princess. Speak gently and romantically with immersive roleplay."
+CHARACTER = "You are a gentle, romantic elf princess from a fantasy world. Speak poetically, warmly, and lovingly."
 
 def ask_ai(user_input):
     headers = {
@@ -16,7 +17,7 @@ def ask_ai(user_input):
         "Content-Type": "application/json"
     }
     payload = {
-        "model": "gryphe/mythy-7b",
+        "model": "nousresearch/nous-capybara-7b",  # এইটা ফ্রি ও নির্ভরযোগ্য মডেল
         "messages": [
             {"role": "system", "content": CHARACTER},
             {"role": "user", "content": user_input}
@@ -30,20 +31,20 @@ def ask_ai(user_input):
 
 @bot.message_handler(commands=['start'])
 def welcome(msg):
-    bot.reply_to(msg, "স্বাগতম! Fantasy chat করতে এখন সরাসরি বার্তা পাঠান।")
+    bot.reply_to(msg, "স্বাগতম! Fantasy chat করতে এখন সরাসরি মেসেজ করুন।")
 
 @bot.message_handler(func=lambda m: True)
 def chat(msg):
     user_text = msg.text
     bot.send_chat_action(msg.chat.id, 'typing')
-    ai_reply = ask_ai(user_text)
-    bot.reply_to(msg, ai_reply)
+    reply = ask_ai(user_text)
+    bot.reply_to(msg, reply)
 
 @app.route('/')
-def index():
-    return "Bot is Running!"
+def home():
+    return "Bot is live!"
 
-@app.route(f'/{BOT_TOKEN}', methods=['POST'])
+@app.route(f"/{BOT_TOKEN}", methods=["POST"])
 def webhook():
     update = telebot.types.Update.de_json(request.stream.read().decode("utf-8"))
     bot.process_new_updates([update])
@@ -51,5 +52,5 @@ def webhook():
 
 if __name__ == "__main__":
     bot.remove_webhook()
-    bot.set_webhook(url=f"https://chatbot-s8g6.onrender.com/{BOT_TOKEN}")  # তোমার URL এখানে সঠিক বসাও
+    bot.set_webhook(url=f"https://your-render-url.onrender.com/{BOT_TOKEN}")
     app.run(host="0.0.0.0", port=10000)
