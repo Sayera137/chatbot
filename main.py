@@ -6,10 +6,9 @@ from flask import Flask, request
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY")
 bot = telebot.TeleBot(BOT_TOKEN)
-
 app = Flask(__name__)
 
-CHARACTER = "You are a soft-spoken, flirtatious fantasy elf princess. Speak gently, romantically, and in poetic tone."
+CHARACTER = "You are a sensual, poetic fantasy elf princess. Speak gently and romantically with immersive roleplay."
 
 def ask_ai(user_input):
     headers = {
@@ -17,17 +16,13 @@ def ask_ai(user_input):
         "Content-Type": "application/json"
     }
     payload = {
-        "model": "nousresearch/nous-hermes-2-mixtral:deep-3-mistral-24b-preview",  # আপনি যে ফ্রি মডেলটি বলেছেন
+        "model": "gryphe/mythy-7b",
         "messages": [
             {"role": "system", "content": CHARACTER},
             {"role": "user", "content": user_input}
         ]
     }
     response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
-
-    print("Status Code:", response.status_code)
-    print("Response Text:", response.text)
-
     if response.status_code == 200:
         return response.json()["choices"][0]["message"]["content"]
     else:
@@ -56,5 +51,5 @@ def webhook():
 
 if __name__ == "__main__":
     bot.remove_webhook()
-    bot.set_webhook(url="https://chatbot-s8g6.onrender.com/" + BOT_TOKEN)
+    bot.set_webhook(url=f"https://chatbot-s8g6.onrender.com/{BOT_TOKEN}")  # তোমার URL এখানে সঠিক বসাও
     app.run(host="0.0.0.0", port=10000)
